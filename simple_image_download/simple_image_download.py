@@ -5,6 +5,8 @@ import requests
 import magic
 import progressbar
 from urllib.parse import quote
+import re
+
 
 class simple_image_download:
     def __init__(self):
@@ -72,9 +74,26 @@ class simple_image_download:
         return(links)
 
 
-    def download(self, keywords, limit, extensions={'.jpg', '.png', '.ico', '.gif', '.jpeg'}):
+    def remove_vietnamese_accent(self, s):
+        s = re.sub(u'[àáạảãâầấậẩẫăằắặẳẵ]', 'a', s)
+        s = re.sub(u'[ÀÁẠẢÃĂẰẮẶẲẴÂẦẤẬẨẪ]', 'A', s)
+        s = re.sub(u'[èéẹẻẽêềếệểễ]', 'e', s)
+        s = re.sub(u'[ÈÉẸẺẼÊỀẾỆỂỄ]', 'E', s)
+        s = re.sub(u'[òóọỏõôồốộổỗơờớợởỡ]', 'o', s)
+        s = re.sub(u'[ÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠ]', 'O', s)
+        s = re.sub(u'[ìíịỉĩ]', 'i', s)
+        s = re.sub(u'[ÌÍỊỈĨ]', 'I', s)
+        s = re.sub(u'[ùúụủũưừứựửữ]', 'u', s)
+        s = re.sub(u'[ƯỪỨỰỬỮÙÚỤỦŨ]', 'U', s)
+        s = re.sub(u'[ỳýỵỷỹ]', 'y', s)
+        s = re.sub(u'[ỲÝỴỶỸ]', 'Y', s)
+        s = re.sub(u'Đ', 'D', s)
+        s = re.sub(u'đ', 'd', s)
+        return s
+
+
+    def download(self, keywords, limit, main_directory="downloads/", extensions={'.jpg', '.png', '.ico', '.gif', '.jpeg'}):
         keyword_to_search = [str(item).strip() for item in keywords.split(',')]
-        main_directory = "simple_images/"
         i = 0
 
         things = len(keyword_to_search) * limit
@@ -85,7 +104,10 @@ class simple_image_download:
         bar.start()
 
         while i < len(keyword_to_search):
-            self._create_directories(main_directory, keyword_to_search[i])
+            kw_no_space = " ".join(keyword_to_search[i].split()).replace(" ", "_")
+            kw_cleaned = self.remove_vietnamese_accent(kw_no_space)
+
+            self._create_directories(main_directory, kw_cleaned)
             url = 'https://www.google.com/search?q=' + quote(
                 keyword_to_search[i].encode('utf-8')) + '&biw=1536&bih=674&tbm=isch&sxsrf=ACYBGNSXXpS6YmAKUiLKKBs6xWb4uUY5gA:1581168823770&source=lnms&sa=X&ved=0ahUKEwioj8jwiMLnAhW9AhAIHbXTBMMQ_AUI3QUoAQ'
             raw_html = self._download_page(url)
@@ -110,7 +132,6 @@ class simple_image_download:
 
                     except Exception as e:
                         break
-                path = main_directory + keyword_to_search[i].replace(" ", "_")
 
                 try:
                     r = requests.get(object_raw, allow_redirects=True, timeout=1)
@@ -123,8 +144,8 @@ class simple_image_download:
                         if file_extension == '.png' and not google_image_seen:
                             google_image_seen = True
                             raise ValueError()
-                        file_name = str(keyword_to_search[i]) + "_" + str(j + 1) + file_extension
-                        with open(os.path.join(path, file_name), 'wb') as file:
+                        file_name = kw_cleaned + "_" + str(j + 1) + file_extension
+                        with open(os.path.join(main_directory, kw_cleaned, file_name), 'wb') as file:
                             file.write(r.content)
                         bar.update(bar.currval + 1)
                     else:
